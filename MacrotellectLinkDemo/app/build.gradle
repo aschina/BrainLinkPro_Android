@@ -1,16 +1,16 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 28
-    buildToolsVersion "29.0.0"
+    compileSdkVersion 33
     defaultConfig {
         applicationId "com.boby.macrotellectlinkdemo"
-        minSdkVersion 19
-        targetSdkVersion 28
+        minSdkVersion 31
+        targetSdkVersion 33
         versionCode 1
         versionName "1.0"
 
     }
+    namespace "com.boby.macrotellectlinkdemo"
     buildTypes {
         release {
             minifyEnabled false

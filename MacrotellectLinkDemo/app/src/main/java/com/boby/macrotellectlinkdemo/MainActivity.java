@@ -34,11 +34,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import java.util.ArrayList;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final int RC_GPS = 4483;
     private static final int RC_BT = 4484;
-    private static final int PER_LOC = 2;
+    private static final int PER_LOC = 4484;
     CheckBox checkbox1;
     CheckBox checkbox2;
     LinearLayout mLinearLayout;
@@ -51,7 +53,6 @@ public class MainActivity extends AppCompatActivity {
     TextView tv_connectSize;
     public static final String TAG = MainActivity.class.getSimpleName();
     private OnConnectListener onConnectListener;
-    private LinkManager.ConnectType connectType = LinkManager.ConnectType.ALLDEVICE;
     private EEGPowerDataListener eegPowerDataListener;
     private LinkManager bluemanage;
 
@@ -67,16 +68,13 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        if (requestCode == PER_LOC) {
-//            if (permissions[0].equals(Manifest.permission.ACCESS_COARSE_LOCATION) && grantResults[0]
-//                    == PackageManager.PERMISSION_GRANTED) {
-//            } else {
-//                if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.
-//                        permission.ACCESS_COARSE_LOCATION)) {
-//                    return;
-//                }
-//            }
-            initBlueManager();
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == RC_BT) {
+            if (permissions.length > 0 &&
+                    permissions[0].equals(Manifest.permission.BLUETOOTH_CONNECT) && grantResults[0] == PackageManager.PERMISSION_GRANTED &&
+                    permissions[1].equals(Manifest.permission.BLUETOOTH_SCAN) && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                startScan();
+            }
         }
     }
 
@@ -226,6 +224,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
+
+
             @Override
             public void onRR(String mac, ArrayList<Integer> rr, int oxygen) {
                 
@@ -285,21 +285,7 @@ public class MainActivity extends AppCompatActivity {
         connectTypeGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(RadioGroup group, int checkedId) {
-                switch (checkedId) {
-                    case R.id.all:
-                        setCanTouch(spinner, true);
-                        connectType = LinkManager.ConnectType.ALLDEVICE;
-                        break;
-                    case R.id.only3:
-//                        setCanTouch(spinner, false);
-//                        spinner.setSelection(0);
-                        connectType = LinkManager.ConnectType.ONLYCLASSBLUE;
-                        break;
-                    case R.id.only4:
-//                        setCanTouch(spinner, true);
-                        connectType = LinkManager.ConnectType.ONLYBLEBLUE;
-                        break;
-                }
+
             }
         });
 
@@ -307,6 +293,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void startScan() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+            // Request the BLUETOOTH_CONNECT and BLUETOOTH_SCAN permissions if they are not granted
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN}, RC_BT);
+            return;
+        }
         BluetoothAdapter defaultAdapter = BluetoothAdapter.getDefaultAdapter();
         if (defaultAdapter == null) {
             return;
@@ -314,6 +306,8 @@ public class MainActivity extends AppCompatActivity {
         if (!defaultAdapter.isEnabled()) {
             mSwitch.setChecked(false);
             Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            // Check if the required permissions are granted
+
             startActivityForResult(intent, RC_BT);
             return;
         } else {
@@ -326,7 +320,6 @@ public class MainActivity extends AppCompatActivity {
         }
         String selectedItem = (String) spinner.getSelectedItem();
         bluemanage.setMaxConnectSize(Integer.parseInt(selectedItem));
-        bluemanage.setConnectType(connectType);
         bluemanage.setWhiteList(ed_whiteList.getText().toString());
         bluemanage.startScan();
     }
