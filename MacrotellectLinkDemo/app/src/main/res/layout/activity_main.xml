@@ -108,6 +108,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:text="med"
+            android:checked="true"
             android:layout_marginLeft="10dp"/>
         <Switch
             android:id="@+id/mSwitch"
@@ -133,6 +134,69 @@
             android:text="连接"
             android:textColor="@color/colorTextPrimaryDark"
             android:visibility="gone"/>
+    </LinearLayout>
+
+    <!-- 添加滑动条 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center_horizontal"
+        android:paddingTop="10dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="att"
+            android:textSize="14sp"
+            android:textColor="@color/colorTextPrimaryDark"/>
+
+        <SeekBar
+            android:id="@+id/seekBar_att"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:max="100"
+            android:progress="@string/default_seekbar_progress" />
+
+        <TextView
+            android:id="@+id/seekBar_att_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="10dp"
+            android:text="@string/default_seekbar_progress"
+            android:textColor="@color/colorTextPrimaryDark"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center_horizontal"
+        android:paddingTop="10dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="med"
+            android:textSize="14sp"
+            android:textColor="@color/colorTextPrimaryDark"/>
+
+        <SeekBar
+            android:id="@+id/seekBar_med"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:max="100"
+            android:progress="@string/default_seekbar_progress" />
+
+        <TextView
+            android:id="@+id/seekBar_med_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="10dp"
+            android:text="@string/default_seekbar_progress"
+            android:textColor="@color/colorTextPrimaryDark"
+            android:textSize="14sp" />
     </LinearLayout>
 
     <androidx.core.widget.NestedScrollView

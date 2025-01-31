@@ -9,4 +9,5 @@
         <item>6</item>
         <item>7</item>
     </string-array>
+    <string name="default_seekbar_progress">20</string>
 </resources>

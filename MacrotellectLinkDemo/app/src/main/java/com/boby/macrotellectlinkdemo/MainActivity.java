@@ -18,6 +18,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -58,6 +59,10 @@ public class MainActivity extends AppCompatActivity {
     private EEGPowerDataListener eegPowerDataListener;
     private LinkManager bluemanage;
     private TextToSpeech tts;
+    private SeekBar seekBarAtt;
+    private TextView seekBarAttValue;
+    private SeekBar seekBarMed;
+    private TextView seekBarMedValue;
 
 
     @Override
@@ -67,6 +72,48 @@ public class MainActivity extends AppCompatActivity {
         initChart();
         initBlueManager();
         initTTS();
+        initSeekBar();
+    }
+
+    private void initSeekBar() {
+        seekBarAtt = findViewById(R.id.seekBar_att);
+        seekBarAttValue = findViewById(R.id.seekBar_att_value);
+        seekBarMed = findViewById(R.id.seekBar_med);
+        seekBarMedValue = findViewById(R.id.seekBar_med_value);
+
+        seekBarAtt.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                seekBarAttValue.setText(String.valueOf(progress));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // Do something
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                // Do something
+            }
+        });
+
+        seekBarMed.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                seekBarMedValue.setText(String.valueOf(progress));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // Do something
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                // Do something
+            }
+        });
     }
 
     private void initTTS() {
@@ -226,11 +273,11 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        if (brainWave.med < 20) {
-                            tts.speak(String.valueOf(brainWave.med), TextToSpeech.QUEUE_FLUSH, null, null);
-                        }
-                        if (brainWave.att < 20) {
+                        if (brainWave.att < seekBarAtt.getProgress()) {
                             tts.speak(String.valueOf(brainWave.att), TextToSpeech.QUEUE_FLUSH, null, null);
+                        }
+                        if (brainWave.med < seekBarMed.getProgress()) {
+                            tts.speak(String.valueOf(brainWave.med), TextToSpeech.QUEUE_FLUSH, null, null);
                         }
 
                         BlueItemView viewWithTag = mLinearLayout.findViewWithTag(mac);
