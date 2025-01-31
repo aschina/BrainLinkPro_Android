@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.View;
 import android.widget.CheckBox;
@@ -35,6 +36,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -55,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private OnConnectListener onConnectListener;
     private EEGPowerDataListener eegPowerDataListener;
     private LinkManager bluemanage;
+    private TextToSpeech tts;
 
 
     @Override
@@ -63,6 +66,27 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         initChart();
         initBlueManager();
+        initTTS();
+    }
+
+    private void initTTS() {
+        tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if (status == TextToSpeech.SUCCESS) {
+                    int result = tts.setLanguage(Locale.CHINESE);
+
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Log.e(TAG, "Language is not supported");
+                    } else {
+                        // TTS is initialized successfully
+                        Log.d(TAG, "TTS is ready");
+                    }
+                } else {
+                    Log.e(TAG, "TTS initialization failed");
+                }
+            }
+        });
     }
 
 
@@ -81,9 +105,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == RC_GPS ) {
+        if (requestCode == RC_GPS) {
             initBlueManager();
-        }else if(requestCode == RC_BT && resultCode == RESULT_OK){
+        } else if (requestCode == RC_BT && resultCode == RESULT_OK) {
             startScan();
         }
     }
@@ -202,6 +226,13 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        if (brainWave.med < 20) {
+                            tts.speak(String.valueOf(brainWave.med), TextToSpeech.QUEUE_FLUSH, null, null);
+                        }
+                        if (brainWave.att < 20) {
+                            tts.speak(String.valueOf(brainWave.att), TextToSpeech.QUEUE_FLUSH, null, null);
+                        }
+
                         BlueItemView viewWithTag = mLinearLayout.findViewWithTag(mac);
                         if (viewWithTag != null) {
                             viewWithTag.addData(brainWave, checkbox1.isChecked(), checkbox2.isChecked());
@@ -225,10 +256,9 @@ public class MainActivity extends AppCompatActivity {
             }
 
 
-
             @Override
             public void onRR(String mac, ArrayList<Integer> rr, int oxygen) {
-                
+
             }
 
         };
@@ -270,16 +300,14 @@ public class MainActivity extends AppCompatActivity {
 
                     setCanTouch(spinner, true);
                     setCanTouch(ed_whiteList, true);
-                    setCanTouch(all,true);
+                    setCanTouch(all, true);
                     setCanTouch(only3, true);
-                    setCanTouch(only4,true);
+                    setCanTouch(only4, true);
                 }
-
 
 
             }
         });
-
 
 
         connectTypeGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
@@ -314,9 +342,9 @@ public class MainActivity extends AppCompatActivity {
             mSwitch.setChecked(true);
             setCanTouch(spinner, false);
             setCanTouch(ed_whiteList, false);
-            setCanTouch(all,false);
+            setCanTouch(all, false);
             setCanTouch(only3, false);
-            setCanTouch(only4,false);
+            setCanTouch(only4, false);
         }
         String selectedItem = (String) spinner.getSelectedItem();
         bluemanage.setMaxConnectSize(Integer.parseInt(selectedItem));
