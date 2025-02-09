@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.os.IBinder;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
-import android.view.View;
 
 import com.boby.bluetoothconnect.LinkManager;
 import com.boby.bluetoothconnect.bean.BrainWave;
@@ -13,13 +12,12 @@ import com.boby.bluetoothconnect.bean.Gravity;
 import com.boby.bluetoothconnect.classic.bean.BlueConnectDevice;
 import com.boby.bluetoothconnect.classic.listener.EEGPowerDataListener;
 import com.boby.bluetoothconnect.classic.listener.OnConnectListener;
-import com.boby.macrotellectlinkdemo.BlueItemView;
 import com.boby.macrotellectlinkdemo.MainActivity;
 
 import java.util.ArrayList;
 import java.util.Locale;
 
-public class BluetoothService extends Service {
+public class BluetoothService extends FloatingWindowService {
     private static final String TAG = BluetoothService.class.getSimpleName();
     private LinkManager bluemanage;
     private TextToSpeech tts;
@@ -99,6 +97,10 @@ public class BluetoothService extends Service {
         eegPowerDataListener = new EEGPowerDataListener() {
             @Override
             public void onBrainWavedata(final String mac, final BrainWave brainWave) {
+                mainActivity.runOnUiThread(() -> {
+                    att.setText(String.valueOf(brainWave.att));
+                    med.setText(String.valueOf(brainWave.med));
+                });
                 mainActivity.handleBrainWaveData(mac, brainWave, tts);
             }
 

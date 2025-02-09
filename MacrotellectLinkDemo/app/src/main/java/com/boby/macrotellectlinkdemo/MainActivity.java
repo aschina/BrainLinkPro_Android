@@ -7,6 +7,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
@@ -37,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int RC_GPS = 4483;
     private static final int RC_BT = 4484;
     private static final int PER_LOC = 4484;
+    private static final int RC_OVERLAY = 4485;
     public static MainActivity instance;
     CheckBox checkbox1;
     CheckBox checkbox2;
@@ -166,7 +168,7 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == RC_GPS) {
             checkAndRequestPermissions();
-        } else if (requestCode == RC_BT && resultCode == RESULT_OK) {
+        } else if ((requestCode == RC_OVERLAY||requestCode == RC_BT) && resultCode == RESULT_OK) {
             startScan();
         }
     }
@@ -265,6 +267,12 @@ public class MainActivity extends AppCompatActivity {
             // Request the BLUETOOTH_CONNECT and BLUETOOTH_SCAN permissions if they are not granted
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN}, RC_BT);
             return;
+        }
+
+        if (!Settings.canDrawOverlays(this)) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivityForResult(intent, RC_OVERLAY);
         }
         BluetoothAdapter defaultAdapter = BluetoothAdapter.getDefaultAdapter();
         if (defaultAdapter == null) {
