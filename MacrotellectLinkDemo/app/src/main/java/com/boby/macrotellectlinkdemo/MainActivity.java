@@ -10,7 +10,6 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
-import android.util.Log;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
@@ -23,12 +22,9 @@ import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 
-import com.boby.bluetoothconnect.LinkManager;
 import com.boby.bluetoothconnect.bean.BrainWave;
 import com.boby.bluetoothconnect.bean.Gravity;
-import com.boby.bluetoothconnect.classic.bean.BlueConnectDevice;
-import com.boby.bluetoothconnect.classic.listener.EEGPowerDataListener;
-import com.boby.bluetoothconnect.classic.listener.OnConnectListener;
+import com.boby.macrotellectlinkdemo.service.BluetoothService;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -36,14 +32,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import java.util.ArrayList;
-import java.util.Locale;
-
 public class MainActivity extends AppCompatActivity {
 
     private static final int RC_GPS = 4483;
     private static final int RC_BT = 4484;
     private static final int PER_LOC = 4484;
+    public static MainActivity instance;
     CheckBox checkbox1;
     CheckBox checkbox2;
     LinearLayout mLinearLayout;
@@ -55,25 +49,23 @@ public class MainActivity extends AppCompatActivity {
     RadioButton all, only3, only4;
     TextView tv_connectSize;
     public static final String TAG = MainActivity.class.getSimpleName();
-    private OnConnectListener onConnectListener;
-    private EEGPowerDataListener eegPowerDataListener;
-    private LinkManager bluemanage;
-    private TextToSpeech tts;
     private SeekBar seekBarAtt;
     private TextView seekBarAttValue;
     private SeekBar seekBarMed;
     private TextView seekBarMedValue;
+    private Intent bluetoothServiceIntent;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        instance = this;
         setContentView(R.layout.activity_main);
         initChart();
-        initBlueManager();
-        initTTS();
+        checkAndRequestPermissions();
         initSeekBar();
     }
+
 
     private void initSeekBar() {
         seekBarAtt = findViewById(R.id.seekBar_att);
@@ -81,10 +73,15 @@ public class MainActivity extends AppCompatActivity {
         seekBarMed = findViewById(R.id.seekBar_med);
         seekBarMedValue = findViewById(R.id.seekBar_med_value);
 
-        seekBarAtt.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        seekBarAtt.setOnSeekBarChangeListener(createSeekBarChangeListener(seekBarAttValue));
+        seekBarMed.setOnSeekBarChangeListener(createSeekBarChangeListener(seekBarMedValue));
+    }
+
+    private SeekBar.OnSeekBarChangeListener createSeekBarChangeListener(final TextView valueTextView) {
+        return new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                seekBarAttValue.setText(String.valueOf(progress));
+                valueTextView.setText(String.valueOf(progress));
             }
 
             @Override
@@ -96,46 +93,61 @@ public class MainActivity extends AppCompatActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
                 // Do something
             }
+        };
+    }
+
+    public void handleBrainWaveData(String mac, BrainWave brainWave, TextToSpeech tts) {
+        runOnUiThread(() -> {
+            if (brainWave.att < seekBarAtt.getProgress()) {
+                tts.speak(String.valueOf(brainWave.att), TextToSpeech.QUEUE_FLUSH, null, null);
+            }
+            if (brainWave.med < seekBarMed.getProgress()) {
+                tts.speak(String.valueOf(brainWave.med), TextToSpeech.QUEUE_FLUSH, null, null);
+            }
+
+            BlueItemView viewWithTag = mLinearLayout.findViewWithTag(mac);
+            if (viewWithTag != null) {
+                viewWithTag.addData(brainWave, checkbox1.isChecked(), checkbox2.isChecked());
+            }
         });
 
-        seekBarMed.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                seekBarMedValue.setText(String.valueOf(progress));
-            }
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-                // Do something
-            }
+    }
 
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                // Do something
+    public void handleConnectionLost(String mac, int connectSize) {
+        runOnUiThread(() -> {
+            tv_connectSize.setText("" + connectSize);
+            BlueItemView viewWithTag = mLinearLayout.findViewWithTag(mac);
+            if (viewWithTag != null) {
+                viewWithTag.setMac("", "", "");
+                viewWithTag.setTag("temp");
             }
+        });
+
+    }
+
+    public void updateUIOnConnectSuccess(String mac, String connectType, String deviceName, int connectSize) {
+        runOnUiThread(() -> {
+            tv_connectSize.setText("" + connectSize);
+            View viewWithTag = mLinearLayout.findViewWithTag("temp");
+            if (viewWithTag == null) {
+                viewWithTag = new BlueItemView(MainActivity.this);
+                mLinearLayout.addView(viewWithTag);
+            }
+            viewWithTag.setTag(mac);
+            BlueItemView mBlueItemView = (BlueItemView) viewWithTag;
+            mBlueItemView.setMac(mac, connectType, deviceName);
         });
     }
 
-    private void initTTS() {
-        tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
-            @Override
-            public void onInit(int status) {
-                if (status == TextToSpeech.SUCCESS) {
-                    int result = tts.setLanguage(Locale.CHINESE);
-
-                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                        Log.e(TAG, "Language is not supported");
-                    } else {
-                        // TTS is initialized successfully
-                        Log.d(TAG, "TTS is ready");
-                    }
-                } else {
-                    Log.e(TAG, "TTS initialization failed");
-                }
+    public void updateGravity(String mac, Gravity gravity) {
+        runOnUiThread(() -> {
+            BlueItemView viewWithTag = mLinearLayout.findViewWithTag(mac);
+            if (viewWithTag != null) {
+                viewWithTag.setGravity(gravity);
             }
         });
     }
-
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -153,19 +165,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == RC_GPS) {
-            initBlueManager();
+            checkAndRequestPermissions();
         } else if (requestCode == RC_BT && resultCode == RESULT_OK) {
             startScan();
         }
     }
 
 
-    /**
-     * 初始化蓝牙管理，设置监听
-     */
-    public void initBlueManager() {
-
-
+    public void checkAndRequestPermissions() {
         //位置权限
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             new AlertDialog.Builder(this)
@@ -196,124 +203,9 @@ public class MainActivity extends AppCompatActivity {
                     })
                     .setCancelable(false)
                     .show();
-            return;
+
         }
 
-
-        onConnectListener = new OnConnectListener() {
-            @Override
-            public void onConnectionLost(BlueConnectDevice blueConnectDevice) {
-                final String mac = blueConnectDevice.getAddress();
-                Log.e(TAG, "连接丢失 namne:" + blueConnectDevice.getName() + " mac: " + mac);
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        tv_connectSize.setText("" + bluemanage.getConnectSize());
-                        BlueItemView viewWithTag = mLinearLayout.findViewWithTag(mac);
-                        if (viewWithTag != null) {
-                            viewWithTag.setMac("", "", "");
-                            viewWithTag.setTag("temp");
-                        }
-                    }
-                });
-            }
-
-            @Override
-            public void onConnectStart(BlueConnectDevice blueConnectDevice) {
-                Log.e(TAG, "开始连接 name:" + blueConnectDevice.getName() + " mac: " + blueConnectDevice.getAddress());
-            }
-
-            @Override
-            public void onConnectting(BlueConnectDevice blueConnectDevice) {
-                Log.e(TAG, "连接中 name:" + blueConnectDevice.getName() + " mac: " + blueConnectDevice.getAddress());
-            }
-
-            @Override
-            public void onConnectFailed(BlueConnectDevice blueConnectDevice) {
-                Log.e(TAG, "连接失败 name:" + blueConnectDevice.getName() + " mac: " + blueConnectDevice.getAddress());
-
-            }
-
-            @Override
-            public void onConnectSuccess(final BlueConnectDevice blueConnectDevice) {
-                final String mac = blueConnectDevice.getAddress();
-                final String connectType = blueConnectDevice.isBleConnect ? " 4.0 " : " 3.0 ";
-                Log.e(TAG, "连接成功 name:" + blueConnectDevice.getName() + " mac: " + mac);
-
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        tv_connectSize.setText("" + bluemanage.getConnectSize());
-                        View viewWithTag = mLinearLayout.findViewWithTag("temp");
-                        if (viewWithTag == null) {
-                            viewWithTag = new BlueItemView(MainActivity.this);
-                            mLinearLayout.addView(viewWithTag);
-                        }
-                        viewWithTag.setTag(mac);
-                        BlueItemView mBlueItemView = (BlueItemView) viewWithTag;
-                        mBlueItemView.setMac(mac, connectType, blueConnectDevice.getName());
-                    }
-                });
-
-            }
-
-            @Override
-            public void onError(Exception e) {
-                Log.e(TAG, "连接错误");
-                e.printStackTrace();
-
-            }
-        };
-
-
-        eegPowerDataListener = new EEGPowerDataListener() {
-            @Override
-            public void onBrainWavedata(final String mac, final BrainWave brainWave) {
-//                Log.e(mac, brainWave.toString() );
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (brainWave.att < seekBarAtt.getProgress()) {
-                            tts.speak(String.valueOf(brainWave.att), TextToSpeech.QUEUE_FLUSH, null, null);
-                        }
-                        if (brainWave.med < seekBarMed.getProgress()) {
-                            tts.speak(String.valueOf(brainWave.med), TextToSpeech.QUEUE_FLUSH, null, null);
-                        }
-
-                        BlueItemView viewWithTag = mLinearLayout.findViewWithTag(mac);
-                        if (viewWithTag != null) {
-                            viewWithTag.addData(brainWave, checkbox1.isChecked(), checkbox2.isChecked());
-                        }
-                    }
-                });
-
-            }
-
-            @Override
-            public void onRawData(String mac, int raw) {
-
-            }
-
-            @Override
-            public void onGravity(String mac, Gravity gravity) {
-                BlueItemView viewWithTag = mLinearLayout.findViewWithTag(mac);
-                if (viewWithTag != null) {
-                    viewWithTag.setGravity(gravity);
-                }
-            }
-
-
-            @Override
-            public void onRR(String mac, ArrayList<Integer> rr, int oxygen) {
-
-            }
-
-        };
-
-        bluemanage = LinkManager.init(this);
-        bluemanage.setMultiEEGPowerDataListener(eegPowerDataListener);
-        bluemanage.setOnConnectListener(onConnectListener);
-        bluemanage.setDebug(true);
 
     }
 
@@ -342,8 +234,8 @@ public class MainActivity extends AppCompatActivity {
                     startScan();
                 } else {
                     mLinearLayout.removeAllViews();
-                    bluemanage.close();
-                    tv_connectSize.setText("" + bluemanage.getConnectSize());
+                    stopService(bluetoothServiceIntent);
+                    //tv_connectSize.setText("" + bluemanage.getConnectSize());
 
                     setCanTouch(spinner, true);
                     setCanTouch(ed_whiteList, true);
@@ -394,9 +286,10 @@ public class MainActivity extends AppCompatActivity {
             setCanTouch(only4, false);
         }
         String selectedItem = (String) spinner.getSelectedItem();
-        bluemanage.setMaxConnectSize(Integer.parseInt(selectedItem));
-        bluemanage.setWhiteList(ed_whiteList.getText().toString());
-        bluemanage.startScan();
+        bluetoothServiceIntent = new Intent(this, BluetoothService.class);
+        bluetoothServiceIntent.putExtra("maxConnectSize", Integer.parseInt(selectedItem));
+        bluetoothServiceIntent.putExtra("whiteList", ed_whiteList.getText().toString());
+        startService(bluetoothServiceIntent);
     }
 
 
@@ -416,9 +309,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (bluemanage != null) {
-            bluemanage.onDestroy();
-        }
 
     }
 
