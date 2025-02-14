@@ -3,28 +3,46 @@ package com.boby.macrotellectlinkdemo.service;
 import android.app.Service;
 import android.content.Intent;
 import android.graphics.PixelFormat;
+import android.os.Handler;
 import android.os.IBinder;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.TextView;
 
 import com.boby.macrotellectlinkdemo.R;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class FloatingWindowService extends Service {
     private WindowManager windowManager;
     private View floatingView;
     public TextView att;
     public TextView med;
-
+    TextView timeTextView;
     @Override
     public void onCreate() {
         super.onCreate();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         addFloatingWindow();
+        updateTime();
+    }
+    private void updateTime() {
+        timeTextView = floatingView.findViewById(R.id.time);
+        Handler handler = new Handler();
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                String currentTime = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+                timeTextView.setText(currentTime);
+                handler.postDelayed(this, 1000);
+            }
+        };
+        handler.post(runnable);
     }
 
     private void addFloatingWindow() {
