@@ -67,6 +67,7 @@ public class FloatingWindowService extends Service {
         floatingView.setOnTouchListener(new View.OnTouchListener() {
             private float initialTouchX, initialTouchY;
             private int initialX, initialY;
+            private long touchStartTime;
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
@@ -75,12 +76,25 @@ public class FloatingWindowService extends Service {
                         initialY = params.y;
                         initialTouchX = event.getRawX();
                         initialTouchY = event.getRawY();
+                        touchStartTime = System.currentTimeMillis();
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         params.x = initialX + (int) (event.getRawX() - initialTouchX);
                         params.y = initialY + (int) (event.getRawY() - initialTouchY);
                         windowManager.updateViewLayout(floatingView, params);
                         return true;
+                    case MotionEvent.ACTION_UP:
+                        float dx = event.getRawX() - initialTouchX;
+                        float dy = event.getRawY() - initialTouchY;
+                        long duration = System.currentTimeMillis() - touchStartTime;
+                        // 判断为点击（移动距离很小且时间很短）
+                        if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && duration < 200) {
+                            Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+                            if (intent != null) {
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                startActivity(intent);
+                            }
+                        }
                 }
                 return false;
             }
